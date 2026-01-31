@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="ml">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Physioway Clinic - Cloud Manager</title>
+    <style>
+        body { font-family: 'Segoe UI', Arial, sans-serif; background-color: #f0f2f5; padding: 15px; }
+        .container { max-width: 1200px; margin: auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
+        h2 { text-align: center; color: #1a73e8; border-bottom: 2px solid #1a73e8; padding-bottom: 10px; margin-top: 0; }
+        
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 20px; background: #f9f9f9; padding: 20px; border-radius: 8px; border: 1px solid #ddd; }
+        .form-group { display: flex; flex-direction: column; }
+        label { font-weight: bold; margin-bottom: 5px; color: #444; font-size: 13px; }
+        input, textarea, select { padding: 8px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; }
+        
+        .clinical-section { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; grid-column: span 3; background: #fff; padding: 15px; border: 1px dashed #bbb; border-radius: 8px; }
+        .full-width { grid-column: span 2 !important; }
+
+        .fee-section { display: grid; grid-template-columns: repeat(4, 100px); gap: 10px; background: #eef7ff; padding: 15px; border-radius: 8px; grid-column: span 3; justify-content: start; }
+        .fee-section input, .fee-section select { width: 80px; }
+
+        .save-btn { background-color: #28a745; color: white; width: 100%; padding: 15px; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; margin-top: 10px; font-weight: bold; }
+        .save-btn:disabled { background-color: #ccc; cursor: not-allowed; }
+
+        .search-container { margin: 20px 0; display: flex; gap: 10px; }
+        #searchInput { flex-grow: 1; padding: 10px; border-radius: 6px; border: 1px solid #1a73e8; }
+
+        .daily-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px; }
+        .stat-box { padding: 12px; border-radius: 8px; text-align: center; color: white; font-weight: bold; font-size: 14px; }
+        .stat-cash { background: #27ae60; }
+        .stat-upi { background: #8e44ad; }
+        .stat-today { background: #2c3e50; }
+        .stat-month { background: #d35400; }
+
+        .table-wrapper { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; min-width: 600px; }
+        th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+        th { background-color: #1a73e8; color: white; }
+        
+        .pay-tag { padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; }
+        .tag-cash { background: #d4edda; color: #155724; }
+        .tag-upi { background: #e2d9f3; color: #512da8; }
+
+        @media print { .no-print { display: none !important; } #printArea { display: block !important; } }
+    </style>
+</head>
+<body>
+
+<div class="container no-print">
+    <h2>Physioway Physiotherapy & Rehabilitation</h2>
+    <p style="text-align:center; margin-top:-10px;">Koduvally | +91 9995230044</p>
+    
+    <div class="form-grid" id="inputForm">
+        <div class="form-group"><label>Name:</label><input type="text" id="name"></div>
+        <div class="form-group"><label>Age:</label><input type="number" id="age"></div>
+        <div class="form-group">
+            <label>Gender:</label>
+            <select id="gender"><option value="Male">Male</option><option value="Female">Female</option></select>
+        </div>
+        <div class="form-group"><label>Phone:</label><input type="text" id="phone"></div>
+        <div class="form-group" style="grid-column: span 2;"><label>Address:</label><input type="text" id="address"></div>
+
+        <div class="clinical-section">
+            <div class="form-group"><label>CHIEF COMPLAINT:</label><textarea id="complaint" rows="2"></textarea></div>
+            <div class="form-group"><label>HISTORY:</label><textarea id="history" rows="2"></textarea></div>
+            <div class="form-group"><label>ON OBSERVATION:</label><textarea id="observation" rows="2"></textarea></div>
+            <div class="form-group"><label>ON PALPATION:</label><textarea id="palpation" rows="2"></textarea></div>
+            <div class="form-group"><label>X-RAY/MRI:</label><textarea id="imaging" rows="2"></textarea></div>
+            <div class="form-group"><label>DIAGNOSIS:</label><textarea id="diagnosis" rows="2"></textarea></div>
+            <div class="form-group full-width"><label>TREATMENT GIVEN:</label><textarea id="treatment" rows="2"></textarea></div>
+        </div>
+
+        <div class="fee-section">
+            <div class="form-group"><label>Cons. (₹)</label><input type="number" id="conFee" value="0" oninput="calcTotal()"></div>
+            <div class="form-group"><label>Treat. (₹)</label><input type="number" id="treatFee" value="0" oninput="calcTotal()"></div>
+            <div class="form-group"><label>Mode</label><select id="payMode"><option value="Cash">Cash</option><option value="UPI">UPI</option></select></div>
+            <div class="form-group"><label>Total (₹)</label><input type="number" id="totalFee" value="0" readonly style="background:#eee;"></div>
+        </div>
+    </div>
+    
+    <button class="save-btn" id="mainBtn" onclick="savePatient()">SAVE TO CLOUD</button>
+
+    <div class="search-container">
+        <input type="text" id="searchInput" placeholder="Search by name or phone..." onkeyup="searchTable()">
+    </div>
+
+    <div class="daily-summary">
+        <div class="stat-box stat-cash">Cash: <span id="sumCash">₹0</span></div>
+        <div class="stat-box stat-upi">UPI: <span id="sumUPI">₹0</span></div>
+        <div class="stat-box stat-today">Today: <span id="sumTotal">₹0</span></div>
+        <div class="stat-box stat-month">Month: <span id="sumMonth">₹0</span></div>
+    </div>
+
+    <div class="table-wrapper">
+        <table id="patientTable">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Name</th>
+                    <th>Phone</th>
+                    <th>Diagnosis</th>
+                    <th>Total</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody id="patientData">
+                <tr><td colspan="6" style="text-align:center;">Loading data from Google Sheets...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div id="printArea" style="display:none;"></div>
+
+<script>
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyvZMUiXoOUFTEUZIvi0T7mZQapO8rjUxac1rS7RvIQaT48wYdp05Gv4D5m60XnV9VK/exec";
+
+    document.addEventListener('DOMContentLoaded', fetchPatients);
+
+    function calcTotal() {
+        const f1 = parseFloat(document.getElementById("conFee").value) || 0;
+        const f2 = parseFloat(document.getElementById("treatFee").value) || 0;
+        document.getElementById("totalFee").value = f1 + f2;
+    }
+
+    async function savePatient() {
+        const name = document.getElementById("name").value;
+        const phone = document.getElementById("phone").value;
+        if(!name || !phone) { alert("പേരും നമ്പറും നൽകുക!"); return; }
+
+        const btn = document.getElementById("mainBtn");
+        btn.disabled = true;
+        btn.innerText = "Saving...";
+
+        const patient = {
+            id: Date.now(),
+            date: new Date().toLocaleDateString(),
+            name: name,
+            age: document.getElementById("age").value,
+            gender: document.getElementById("gender").value,
+            phone: phone,
+            address: document.getElementById("address").value,
+            complaint: document.getElementById("complaint").value,
+            history: document.getElementById("history").value,
+            observation: document.getElementById("observation").value,
+            palpation: document.getElementById("palpation").value,
+            imaging: document.getElementById("imaging").value,
+            diagnosis: document.getElementById("diagnosis").value,
+            treatment: document.getElementById("treatment").value,
+            conFee: document.getElementById("conFee").value,
+            treatFee: document.getElementById("treatFee").value,
+            totalFee: document.getElementById("totalFee").value,
+            payMode: document.getElementById("payMode").value
+        };
+
+        try {
+            await fetch(SCRIPT_URL, {
+                method: "POST",
+                mode: "no-cors",
+                cache: "no-cache",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(patient)
+            });
+            alert("Saved Successfully!");
+            location.reload();
+        } catch (e) {
+            alert("Error saving data!");
+            btn.disabled = false;
+            btn.innerText = "SAVE TO CLOUD";
+        }
+    }
+
+    async function fetchPatients() {
+        try {
+            const response = await fetch(SCRIPT_URL);
+            const data = await response.json();
+            displayPatients(data);
+        } catch (e) {
+            document.getElementById("patientData").innerHTML = "<tr><td colspan='6' style='text-align:center;'>No data found or Error loading.</td></tr>";
+        }
+    }
+
+    function displayPatients(data) {
+        const tableBody = document.getElementById("patientData");
+        tableBody.innerHTML = "";
+        
+        let cashToday = 0, upiToday = 0, totalMonth = 0;
+        const today = new Date().toLocaleDateString();
+        const thisMonth = new Date().getMonth();
+
+        data.slice().reverse().forEach(p => {
+            const fee = parseFloat(p.totalFee) || 0;
+            
+            // Statistics Logic
+            if(p.date === today) {
+                if(p.payMode === "Cash") cashToday += fee;
+                else upiToday += fee;
+            }
+            
+            tableBody.innerHTML += `<tr>
+                <td>${p.date}</td>
+                <td>${p.name}</td>
+                <td>${p.phone}</td>
+                <td>${p.diagnosis ? p.diagnosis.substring(0,20) : '-'}</td>
+                <td>₹${p.totalFee} <span class="pay-tag ${p.payMode==='Cash'?'tag-cash':'tag-upi'}">${p.payMode}</span></td>
+                <td><button onclick="printPatient(${JSON.stringify(p).replace(/"/g, '&quot;')})">Print</button></td>
+            </tr>`;
+        });
+
+        document.getElementById("sumCash").innerText = "₹" + cashToday;
+        document.getElementById("sumUPI").innerText = "₹" + upiToday;
+        document.getElementById("sumTotal").innerText = "₹" + (cashToday + upiToday);
+        document.getElementById("sumMonth").innerText = "₹" + (cashToday + upiToday); // Simplified for now
+    }
+
+    function searchTable() {
+        let input = document.getElementById("searchInput").value.toLowerCase();
+        let rows = document.getElementById("patientData").getElementsByTagName("tr");
+        for (let row of rows) {
+            let name = row.cells[1] ? row.cells[1].innerText.toLowerCase() : "";
+            let phone = row.cells[2] ? row.cells[2].innerText.toLowerCase() : "";
+            row.style.display = (name.includes(input) || phone.includes(input)) ? "" : "none";
+        }
+    }
+
+    function printPatient(p) {
+        let content = `
+            <div style="padding: 30px; font-family: sans-serif; border: 1px solid #000;">
+                <h2 style="text-align:center; color:#1a73e8; margin-bottom:0;">Physioway Physiotherapy</h2>
+                <p style="text-align:center; margin-top:5px;">Koduvally | +91 9995230044</p>
+                <hr>
+                <p><strong>Date:</strong> ${p.date}</p>
+                <p><strong>Name:</strong> ${p.name} (${p.age}Y / ${p.gender})</p>
+                <p><strong>Phone:</strong> ${p.phone}</p>
+                <hr>
+                <div style="line-height: 1.6;">
+                    <p><strong>DIAGNOSIS:</strong> ${p.diagnosis || '-'}</p>
+                    <p><strong>TREATMENT:</strong> ${p.treatment || '-'}</p>
+                </div>
+                <hr>
+                <p><strong>Total Paid:</strong> ₹${p.totalFee} (${p.payMode})</p>
+            </div>`;
+        document.getElementById("printArea").innerHTML = content;
+        window.print();
+    }
+</script>
+</body>
+</html>
